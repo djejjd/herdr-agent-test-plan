@@ -19,3 +19,17 @@
 - [落地步骤与检查表](docs/07-落地步骤与检查表.md)
 
 [六份可复制模板](templates/)
+
+## 本地工作流与 Herdr MCP
+
+从[协作总纲](workflow/collab.md)进入[派工与验收](workflow/collab/work.md)、[工作区与收尾](workflow/collab/ops.md)和[全局规则](workflow/rules.md)。原文中的 `~/ai` 对应本包的 `workflow/`。每个使用者单独维护自己的待批账本。`merge-gate.sh` 可以通过 `MERGE_GATE_LEDGER` 指向自己的账本。
+
+[MCP 原型与配置](mcp/herdr-agents/README.md)来自 HerdrCLI 提交 `afa5e80`。它提供可见派工、子任务树、持久收件及关闭操作。已验证 Codex 临时配置和 stdio 握手；可见启动、自动回报及窗格关闭仍待真实窗口验收。
+
+在仓库根目录运行以下离线检查：
+
+```bash
+BIN="$PWD/workflow/bin" bash workflow/bin/card-check.test.sh
+bash workflow/bin/merge-gate.test.sh
+python3 -B -m unittest discover -s mcp/herdr-agents -v
+```
