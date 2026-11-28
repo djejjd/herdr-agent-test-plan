@@ -15,7 +15,10 @@ class Flow(unittest.TestCase):
                 with self.subTest(owner=owner,worker=worker):
                     self.check_flow(owner,worker)
 
-    def check_flow(self, owner, worker):
+    def test_release_running(self):
+        self.check_flow("pi", "claude", cancel=True)
+
+    def check_flow(self, owner, worker, cancel=False):
         with TemporaryDirectory() as tmp:
             db = Registry(Path(tmp) / 'state')
             tabs = [{'id':'tab0','panes':[{'terminal':'t1'}]}]
@@ -35,6 +38,11 @@ class Flow(unittest.TestCase):
             with patch.object(server,'registry',db,create=True), patch.object(server,'cli',cli), patch.object(server,'identity',return_value='t1'), patch('shutil.which',return_value='/bin/test'):
                 ref=server.invoke('spawn',dict(harness=worker,task='试单',name='示例',folder=tmp))
                 key=ref['task'];self.assertEqual(len(tabs),2)
+                if cancel:
+                    result = server.invoke('ack',dict(task_id=key,turn=1,action='release'))
+                    self.assertEqual(result['state'],'closed')
+                    self.assertEqual(len(tabs),1)
+                    return
                 server.deliver(key,1,'review','fixture 完成')
                 self.assertEqual(server.invoke('inbox',{})[0]['summary'],'fixture 完成')
                 tabs[1]['panes'].append({'terminal':'t3'})

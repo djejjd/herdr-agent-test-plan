@@ -175,8 +175,13 @@ def invoke(name,a):
         return dict(task=key,**ref)
     task=registry.get(a['task_id']); key=task['id']
     if task['owner']!=owner or task['turn']!=a['turn']: raise ValueError('owner/turn mismatch')
-    if task['state'] not in ('review','failed','unverified','idle','closing'): raise ValueError('not ready for receipt')
     action=a['action']
+    if action=='release' and task['state']=='closed':
+        return {'state':'closed'}
+    if action!='release' and task['state'] not in ('review','failed','unverified','idle','closing'):
+        raise ValueError('not ready for receipt')
+    if action=='release' and not task['terminal']:
+        raise ValueError('terminal binding unavailable')
     if action not in ('accept','release','retry'): raise ValueError('invalid action')
     with registry.db:
         if action=='retry':
