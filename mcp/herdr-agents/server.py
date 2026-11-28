@@ -211,7 +211,8 @@ def invoke(name,a):
             if ids!={task['terminal']}: raise ValueError('tab ownership changed; manual cleanup')
             cli('herdr-app','do','tab.close',json.dumps(dict(id=task['tab'],confirmed=True)))
         if any(t['id']==task['tab'] for _,t in tabs()): raise ValueError('tab still present')
-        if cli('hc','get',task['terminal'])['state']=='live': raise ValueError('terminal still live')
+        if cli('hc','get',task['terminal']).get('state') != 'finished':
+            raise ValueError('terminal exit unconfirmed')
         with registry.db:
             registry.db.execute('UPDATE tasks SET state="closed" WHERE id=?',(key,))
             registry.db.execute('UPDATE events SET acknowledged=1 WHERE task=? AND turn=?',(key,task['turn']))

@@ -23,11 +23,12 @@ class Flow(unittest.TestCase):
             db = Registry(Path(tmp) / 'state')
             tabs = [{'id':'tab0','panes':[{'terminal':'t1'}]}]
             calls = []
+            exit_state = "finished"
             def cli(*args):
                 calls.append(args[:3])
                 if args[:2] == ('hc','get'):
                     live = args[2]=='t1' or len(tabs)>1
-                    return dict(address=args[2], state='live' if live else 'finished',created_ms=1,
+                    return dict(address=args[2], state='live' if live else exit_state,created_ms=1,
                                 foreground={'name':owner,'pid':123},argv=[server.sys.executable,server.HERE,'worker',key] if args[2]!='t1' else [])
                 if args[:2] == ('herdr-app','ls'): return {'spaces':[{'id':'s','tabs':tabs}]}
                 if args[2]=='tab.new':
@@ -51,6 +52,11 @@ class Flow(unittest.TestCase):
                 self.assertEqual(len(tabs),2)
                 self.assertEqual(len(server.invoke('inbox',{})),1)
                 tabs[1]['panes'].pop()
+                exit_state = 'unknown'
+                with self.assertRaisesRegex(ValueError, 'exit unconfirmed'):
+                    server.invoke('ack',dict(task_id=key,turn=1,action='accept'))
+                self.assertEqual(len(server.invoke('inbox',{})),1)
+                exit_state = 'finished'
                 self.assertEqual(server.invoke('ack',dict(task_id=key,turn=1,action='accept')),{'state':'closed'})
                 self.assertEqual(len(tabs),1)
                 self.assertEqual(server.invoke('inbox',{}),[])
