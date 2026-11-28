@@ -53,3 +53,24 @@ class Flow(unittest.TestCase):
                 self.assertEqual(server.invoke('ack',dict(task_id=key,turn=1,action='accept')),{'state':'closed'})
                 self.assertEqual(len(tabs),1)
                 self.assertIn(('hc','send','t1'),calls)
+
+    def test_resume_replay(self):
+        with TemporaryDirectory() as tmp:
+            db = Registry(Path(tmp) / 'state')
+            db.create('prior','owner','codex','long','worker','first',tmp)
+            db.db.execute("UPDATE tasks SET state='closed'")
+            db.db.commit()
+            tabs = [{'id':'owner-tab','panes':[{'terminal':'t1'}]}]
+            def cli(*args):
+                if args[2] == 'tab.new':
+                    tabs.append({'id':'child-tab','panes':[{'terminal':'t2'}]})
+                    return dict(tab='child-tab',terminal='t2')
+                return {}
+            with patch.object(server,'registry',db,create=True), patch.object(server,'owner_key',return_value='owner'), patch.object(server,'identity',return_value='t1'), patch.object(server,'tabs',side_effect=lambda: [('s',tab) for tab in tabs]), patch.object(server,'cli',cli), patch('shutil.which',return_value='codex'):
+                request = dict(task_id='prior',instruction='continue')
+                first = server.invoke('resume',request)
+                replay = server.invoke('resume',request)
+                self.assertEqual(first['task'],replay['task'])
+                self.assertEqual(len(tabs),2)
+                with self.assertRaisesRegex(ValueError,'conflict'):
+                    server.invoke('resume',dict(task_id='prior',instruction='other'))

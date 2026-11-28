@@ -143,6 +143,7 @@ def invoke(name,a):
                 except (ValueError,OSError,subprocess.TimeoutExpired):
                     pass
         return rows
+    previous = None
     if name=='resume':
         previous=registry.get(a['task_id'])
         if previous['owner']!=owner or previous['mode']!='long' or previous['state']!='closed':
@@ -158,12 +159,14 @@ def invoke(name,a):
         space=next((s for s,t in tabs() if terminal in terminal_ids(t)),None)
         if not space: raise ValueError('owner has no visible tab')
         key = uuid.uuid5(uuid.NAMESPACE_URL, owner+'/' + a['task_id']).hex if a.get('task_id') else uuid.uuid4().hex
+        if previous:
+            key = uuid.uuid5(uuid.NAMESPACE_OID, previous['id']).hex
         parent = os.environ.get('HERDR_TASK')
         if parent and registry.get(parent)['terminal'] != terminal:
             raise ValueError('parent terminal mismatch')
         foreground = cli('hc','get',terminal).get('foreground') or {}
         pid = foreground.get('pid') if foreground.get('name') not in ('sh','bash','zsh','fish','pwsh','cmd') else None
-        existing = registry.reserve(key,owner,h,mode,a['name'],a['task'],folder,parent,pid,json.dumps(profiles[h]))
+        existing = registry.reserve(key,owner,h,mode,a['name'],a['task'],folder,parent,pid,json.dumps(profiles[h]),previous)
         if existing:
             return dict(task=key, **existing)
         args=dict(space=space,name=a['name'],folder=folder,argv=[sys.executable,HERE,'worker',key])
@@ -174,7 +177,7 @@ def invoke(name,a):
             registry.bind(key,ref['terminal'],ref['tab'])
         except Exception:
             deliver(key,1,'failed','visible spawn/bind failed'); raise
-        return dict(task=key,**ref)
+        return dict(task=key,role_id=previous['role_id'] if previous else key,resumed_from=previous['id'] if previous else None,**ref)
     task=registry.get(a['task_id']); key=task['id']
     if task['owner']!=owner or task['turn']!=a['turn']: raise ValueError('owner/turn mismatch')
     action=a['action']
