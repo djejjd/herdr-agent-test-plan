@@ -49,9 +49,11 @@ class Flow(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'ownership changed'):
                     server.invoke('ack',dict(task_id=key,turn=1,action='accept'))
                 self.assertEqual(len(tabs),2)
+                self.assertEqual(len(server.invoke('inbox',{})),1)
                 tabs[1]['panes'].pop()
                 self.assertEqual(server.invoke('ack',dict(task_id=key,turn=1,action='accept')),{'state':'closed'})
                 self.assertEqual(len(tabs),1)
+                self.assertEqual(server.invoke('inbox',{}),[])
                 self.assertIn(('hc','send','t1'),calls)
 
     def test_resume_replay(self):

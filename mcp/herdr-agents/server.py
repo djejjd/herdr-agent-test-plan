@@ -188,16 +188,20 @@ def invoke(name,a):
     if action=='release' and not task['terminal']:
         raise ValueError('terminal binding unavailable')
     if action not in ('accept','release','retry'): raise ValueError('invalid action')
+    close_required = task['state']=='closing' or action=='release' or (action=='accept' and task['mode']!='short')
+    if task['state']=='closing' and action=='retry':
+        raise ValueError('cleanup pending')
     with registry.db:
         if action=='retry':
             if not a.get('instruction'): raise ValueError('instruction required')
             cur=registry.db.execute('UPDATE tasks SET prompt=?,turn=turn+1,state="working" WHERE id=? AND turn=? AND state=?',(registry.handoff(key, a['instruction']),key,task['turn'],task['state']))
         else:
-            state='idle' if action=='accept' and task['mode']=='short' else 'closing'
+            state='closing' if close_required else 'idle'
             cur=registry.db.execute('UPDATE tasks SET state=? WHERE id=? AND turn=? AND state=?',(state,key,task['turn'],task['state']))
         if cur.rowcount!=1: raise ValueError('concurrent change')
-        registry.db.execute('UPDATE events SET acknowledged=1 WHERE task=? AND turn=?',(key,task['turn']))
-    if action!='retry' and state=='closing':
+        if not close_required:
+            registry.db.execute('UPDATE events SET acknowledged=1 WHERE task=? AND turn=?',(key,task['turn']))
+    if close_required:
         tab=next((t for _,t in tabs() if t['id']==task['tab']),None)
         if tab:
             live=cli('hc','get',task['terminal'])
@@ -208,7 +212,9 @@ def invoke(name,a):
             cli('herdr-app','do','tab.close',json.dumps(dict(id=task['tab'],confirmed=True)))
         if any(t['id']==task['tab'] for _,t in tabs()): raise ValueError('tab still present')
         if cli('hc','get',task['terminal'])['state']=='live': raise ValueError('terminal still live')
-        with registry.db: registry.db.execute('UPDATE tasks SET state="closed" WHERE id=?',(key,))
+        with registry.db:
+            registry.db.execute('UPDATE tasks SET state="closed" WHERE id=?',(key,))
+            registry.db.execute('UPDATE events SET acknowledged=1 WHERE task=? AND turn=?',(key,task['turn']))
     return {'state':registry.get(key)['state']}
 
 
