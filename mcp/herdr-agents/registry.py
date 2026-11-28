@@ -49,6 +49,11 @@ class Registry:
             row = self.get(key)
             if previous and (row['resumed_from'] != previous['id'] or row['initial_prompt'] != prompt):
                 raise ValueError('resume instruction conflict')
+            original = row['initial_prompt']
+            if original is None and row['turn'] == 1:
+                original = row['prompt']
+            if original != prompt or row['parent'] != parent:
+                raise ValueError('task id conflict: original instruction or parent differs')
             if any(row[k] != v for k,v in [('owner',owner),('harness',harness),('mode',mode),('name',name),('folder',folder)]):
                 raise ValueError('task id conflict')
             return {k:row[k] for k in ('id','state','terminal','tab','turn','role_id','resumed_from')}

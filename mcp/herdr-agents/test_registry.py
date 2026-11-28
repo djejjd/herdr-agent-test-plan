@@ -38,3 +38,13 @@ class Lifecycle(unittest.TestCase):
         handoff = self.r.handoff('x', '把结果加一')
         self.assertIn('第一版结果 41', handoff)
         self.assertTrue(handoff.endswith('把结果加一'))
+
+    def test_spawn_replay_uses_original_instruction(self):
+        def replay(prompt):
+            return self.r.reserve('x','owner','codex','once','检查',prompt,'/tmp',None,None,None)
+
+        with self.r.db:
+            self.r.db.execute("UPDATE tasks SET prompt='修改后的任务',turn=2 WHERE id='x'")
+        self.assertEqual(replay('输入')['terminal'], 't7')
+        with self.assertRaisesRegex(ValueError, 'conflict'):
+            replay('修改后的任务')
