@@ -48,3 +48,10 @@ class Lifecycle(unittest.TestCase):
         self.assertEqual(replay('输入')['terminal'], 't7')
         with self.assertRaisesRegex(ValueError, 'conflict'):
             replay('修改后的任务')
+
+    def test_unknown_state_rejected_in_storage(self):
+        import sqlite3
+        for query in ("UPDATE tasks SET state='completed' WHERE id='x'",
+                      "INSERT INTO events(task,turn,state,summary) VALUES('x',1,'completed','done')"):
+            with self.assertRaises(sqlite3.IntegrityError), self.r.db:
+                self.r.db.execute(query)

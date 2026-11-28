@@ -26,6 +26,16 @@ class Registry:
 
             self.db.execute('UPDATE tasks SET role_id=id WHERE role_id IS NULL')
 
+            # 兼容已有数据库，只校验此后新增或修改的状态。
+            events = ('blocked','needs_decision','review','failed','unverified')
+            tasks = events + ('starting','working','idle','closing','closed')
+            for table, states in [('tasks', tasks), ('events', events)]:
+                for action, clause in [('insert','INSERT'), ('update','UPDATE OF state')]:
+                    self.db.execute(f"""CREATE TRIGGER IF NOT EXISTS valid_{table}_{action}
+                        BEFORE {clause} ON {table}
+                        WHEN NEW.state IS NULL OR NEW.state NOT IN {states}
+                        BEGIN SELECT RAISE(ABORT, 'invalid Herdr state'); END""")
+
     def tree(self, owner):
         rows = self.db.execute('''
             WITH RECURSIVE owned(id) AS (

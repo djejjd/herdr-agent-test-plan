@@ -96,7 +96,7 @@ def worker(key):
         try:
             receipt = directory / f'{key}-{turn}.receipt'
             instruction = (task['prompt'] + '\n完成后将简短交付摘要和证据位置作为 UTF-8 文本写入 '
-                           + str(receipt) + '，也可以用已配置的 report 工具交件。')
+                           + str(receipt) + '，然后立即结束本轮；worker 会自动登记 review。也可使用已配置的 report 工具。任务数据库由 MCP 独占维护，请通过工具查询和更新。')
             argv = json.loads(task['launch_argv'])
             if '{receipt}' in argv:
                 instruction = task['prompt'] + '\n请在最终回复中给出简短交付摘要和证据位置。'
