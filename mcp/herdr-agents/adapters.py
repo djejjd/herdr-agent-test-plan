@@ -14,7 +14,9 @@ def load(config=None):
         if not isinstance(argv, list) or not argv or not all(isinstance(v,str) and v for v in argv) or argv.count('{task}') != 1 or argv[0] == '{task}':
             raise ValueError(f'invalid harness profile: {name}')
     for argv in profiles.values():
-        if argv[0] == '{claude_receipt}':
+        if argv[0] == '{stdout_receipt}':
+            argv[:1] = [sys.executable, str(Path(__file__).with_name('stdout_receipt.py'))]
+        elif argv[0] == '{claude_receipt}':
             argv[:1] = [sys.executable, str(Path(__file__).with_name('claude_receipt.py'))]
     return profiles
 

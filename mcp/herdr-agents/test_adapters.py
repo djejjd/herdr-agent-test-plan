@@ -28,3 +28,16 @@ class Adapters(unittest.TestCase):
         for changes in (dict(is_error=True),dict(subtype='error'),dict(result='  ')):
             with self.assertRaises(ValueError):
                 final_result(dict(event, **changes))
+
+    def test_stdout_receipt(self):
+        import subprocess
+        import sys
+        with tempfile.TemporaryDirectory() as tmp:
+            receipt = Path(tmp)/'receipt'
+            adapter = Path(__file__).with_name('stdout_receipt.py')
+            for code in ('raise SystemExit(1)', 'print(" ")', 'print("kiwi-82")'):
+                result = subprocess.run([sys.executable, adapter, receipt, sys.executable, '-c', code], capture_output=True)
+                expected = 'kiwi' in code
+                self.assertEqual(result.returncode == 0, expected)
+                self.assertEqual(receipt.exists(), expected)
+            self.assertEqual(receipt.read_text(), 'kiwi-82')
