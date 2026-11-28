@@ -24,7 +24,7 @@
 
 从[协作总纲](workflow/collab.md)进入[派工与验收](workflow/collab/work.md)、[工作区与收尾](workflow/collab/ops.md)和[全局规则](workflow/rules.md)。原文中的 `~/ai` 对应本包的 `workflow/`。每个使用者单独维护自己的待批账本。`merge-gate.sh` 可以通过 `MERGE_GATE_LEDGER` 指向自己的账本。
 
-可见子任务由 Herdr App 创建。Codex、Claude、OMP、Pi 已有担任主管和执行者的真机记录，各模式的验收范围与 ds-tui 的接入进展见[使用说明](mcp/herdr-agents/README.md)。
+可见子任务由 Herdr App 创建。Codex、Claude、OMP、Pi 和使用本机原生 headless 配置的 DSH 已有担任主管和执行者的真机记录，各模式的验收范围与 ds-tui 的接入进展见[使用说明](mcp/herdr-agents/README.md)。
 
 在仓库根目录运行以下离线检查：
 

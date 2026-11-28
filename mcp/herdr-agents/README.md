@@ -60,5 +60,5 @@ Herdr 会打开对应标签页。主管收到通知后运行 `python3 -B "$serve
 | Codex | 一次性交付、短期返修、长期恢复。相同恢复请求返回同一任务和标签页 | 跨 harness 主管派工 |
 | OMP、Pi | 一次性任务各自写出指定文件，自动交件。主管独立读取文件并验收，关闭后终端为 `finished` | 返修、长期恢复 |
 | Claude | 可见窗口内完成一次性计算。适配器从 `--output-format json` 的成功结果生成回执，主管核验答案并关闭终端。Claude 通过 stdio MCP 向 Pi 派工，读取文件，验收 review 回执并释放子终端 | Claude 作为执行者写文件、返修、长期恢复 |
-| ds-tui | 启动失败可反馈并释放窗口 | 本机 `dsh-tui run` 与已安装 DSH 版本不匹配，原生入口的成功交付待验 |
+| ds-tui | 本机原生 DSH headless 通过临时 profile 接入现有模型路由及 Herdr stdio MCP。作为主管向 Pi 派工、核验文件并关闭窗口，作为上级的执行者通过 stdout 交付回执 | 默认 `dsh-tui run` 与本机 DSH 版本不匹配；其他机器需核对运行时及 profile。短期返修和长期恢复待验 |
 | OpenCode | 保留启动配置 | 本轮未做真机验收 |
