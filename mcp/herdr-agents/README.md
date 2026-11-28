@@ -27,6 +27,30 @@ MCP 客户端使用 stdio，命令为 `python3`，参数为本目录 `server.py`
 
 支持 stdio MCP 的主管配置 `python3 /绝对路径/server.py`。其他 harness 可调用 `python3 /绝对路径/server.py call 工具名 'JSON参数'`。主管给 `spawn` 传入稳定 `task_id` 即可重试相同派工。执行者在当前任务的环境中调用 `report`，交件摘要需指出证据和待决事项。短期任务用 `ack(action="retry", instruction=...)` 进入下一轮。长期角色恢复依据摘要创建新会话。
 
+## 第一次派工
+
+在 Herdr App 的主管终端中进入本仓库根目录。下面的 CLI 与 stdio MCP 调用同一套工具。先确认主管能看到自己的任务列表。
+
+```sh
+server="$PWD/mcp/herdr-agents/server.py"
+python3 -B "$server" call list
+```
+
+例如，要让 Pi 检查当前项目的 README，可在同一终端运行以下命令。每次发起新任务可换一个 `task_id`，网络中断后重发同一请求则沿用原值。
+
+```sh
+request=$(python3 -c 'import json, os; print(json.dumps(dict(name="文档检查", folder=os.getcwd(), harness="pi", mode="once", task_id="readme-check-1", task="读取 README.md，返回第一个 Markdown 标题和文件路径。")))')
+python3 -B "$server" call spawn "$request"
+```
+
+Herdr 会打开对应标签页。主管收到通知后运行 `python3 -B "$server" call inbox`，使用返回事件里的 `task` 和 `turn`，对照 README 核实标题。通过后调用 `ack`，例如 `python3 -B "$server" call ack '{"task_id":"替换为事件里的task","turn":1,"action":"accept"}'`。需要返修时将 `action` 改为 `retry`，并用 `instruction` 写明要改什么、怎样验证。一次性任务接受后应返回 `closed`。
+
+支持 `mcpServers` 格式的客户端可将以下条目加入项目级配置，将示例路径替换为实际绝对路径。从同一个 Herdr 终端启动主管，工具名与上例一致。
+
+```json
+{"mcpServers":{"herdr":{"command":"python3","args":["-B","/绝对路径/herdr-agent-test-plan/mcp/herdr-agents/server.py"]}}}
+```
+
 ## 验证范围
 
 五种主管与五种执行者的 25 种组合已通过模拟 Herdr 的调用测试。下表记录真实 Herdr 标签页中的执行结果。主管侧已实测 Codex 派工，以及 Pi → OMP 和 OMP → Pi 两个方向的派工、文件验收、回执与终端释放。主管可直接运行 `python3 /绝对路径/server.py call inbox` 读取待办。
