@@ -1,0 +1,8 @@
+{
+  "codex": ["codex", "exec", "--skip-git-repo-check", "--", "{task}"],
+  "claude": ["claude", "-p", "--", "{task}"],
+  "omp": ["omp", "-p", "{task}"],
+  "ds-tui": ["dsh-tui", "run", "{task}"],
+  "pi": ["pi", "-p", "{task}"],
+  "opencode": ["opencode", "run", "--", "{task}"]
+}

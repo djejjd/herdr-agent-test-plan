@@ -19,6 +19,11 @@ class Registry:
             if 'parent' not in {r['name'] for r in self.db.execute('PRAGMA table_info(tasks)')}:
                 self.db.execute('ALTER TABLE tasks ADD COLUMN parent TEXT')
 
+            columns = {r['name'] for r in self.db.execute('PRAGMA table_info(tasks)')}
+            for name, kind in [('owner_pid','INTEGER'),('launch_argv','TEXT')]:
+                if name not in columns:
+                    self.db.execute(f'ALTER TABLE tasks ADD COLUMN {name} {kind}')
+
     def tree(self, owner):
         rows = self.db.execute('''
             WITH RECURSIVE owned(id) AS (
@@ -29,10 +34,20 @@ class Registry:
         ''', (owner,))
         return [dict(r) for r in rows]
 
-    def create(self, key, owner, harness, mode, name, prompt, folder, parent=None):
+    def create(self, key, owner, harness, mode, name, prompt, folder, parent=None, pid=None, argv=None):
         with self.db:
-            self.db.execute('INSERT INTO tasks(id,owner,harness,mode,name,prompt,folder,parent) VALUES(?,?,?,?,?,?,?,?)',
-                            (key, owner, harness, mode, name, prompt, folder, parent))
+            self.db.execute('INSERT INTO tasks(id,owner,harness,mode,name,prompt,folder,parent,owner_pid,launch_argv) VALUES(?,?,?,?,?,?,?,?,?,?)',
+                            (key, owner, harness, mode, name, prompt, folder, parent, pid, argv))
+
+    def reserve(self, key, owner, harness, mode, name, prompt, folder, parent, pid, argv):
+        try:
+            self.create(key, owner, harness, mode, name, prompt, folder, parent, pid, argv)
+            return None
+        except sqlite3.IntegrityError:
+            row = self.get(key)
+            if any(row[k] != v for k,v in [('owner',owner),('harness',harness),('mode',mode),('name',name),('folder',folder)]):
+                raise ValueError('task id conflict')
+            return {k:row[k] for k in ('id','state','terminal','tab','turn')}
 
     def get(self, key):
         row = self.db.execute('SELECT * FROM tasks WHERE id=?', (key,)).fetchone()

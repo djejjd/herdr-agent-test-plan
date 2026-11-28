@@ -9,9 +9,9 @@ import sys
 import time
 import uuid
 from registry import Registry
+from adapters import load
 
 HERE = str(Path(__file__).resolve())
-HARNESSES = {'codex': ['codex','exec','--skip-git-repo-check'], 'claude': ['claude','-p'], 'opencode': ['opencode','run']}
 
 
 def cli(*args):
@@ -40,6 +40,12 @@ def terminal_ids(obj):
 
 
 
+def owns_worker(live,key):
+    argv = live.get('argv') or []
+    expected = [sys.executable,HERE,'worker',key]
+    return argv == expected or (argv[:4] == ['/bin/zsh','-lic','"$@"; exec "$0" -li','/bin/zsh'] and argv[4:] == expected)
+
+
 def tabs():
     for space in cli('herdr-app','ls')['spaces']:
         for tab in space['tabs']:
@@ -48,8 +54,9 @@ def tabs():
 
 def notify(task):
     owner_terminal = task['owner'].split('@')[0]
-    if cli('hc','get',owner_terminal).get('foreground',{}).get('name') not in HARNESSES:
-        raise ValueError('主管当前没有可识别的前台 harness')
+    foreground = cli('hc','get',owner_terminal).get('foreground') or {}
+    if not task.get('owner_pid') or foreground.get('pid') != task['owner_pid']:
+        raise ValueError('owner process changed')
     if owner_key(owner_terminal) != task['owner']:
         raise ValueError('owner session changed')
     cli('hc','send',owner_terminal, f'Herdr 任务 {task["id"]} 有新反馈，请读取 inbox。')
@@ -90,7 +97,7 @@ def worker(key):
             receipt = directory / f'{key}-{turn}.receipt'
             instruction = (task['prompt'] + '\n完成后将简短交付摘要和证据位置作为 UTF-8 文本写入 '
                            + str(receipt) + '，也可以用已配置的 report 工具交件。')
-            result = subprocess.run([*HARNESSES[task['harness']], '--', instruction],env=env)
+            result = subprocess.run([instruction if arg=='{task}' else arg for arg in json.loads(task['launch_argv'])],env=env)
             status = 'review' if result.returncode==0 else 'failed'
             if registry.get(key)['state'] not in ('review','failed'):
                 if status == 'review' and receipt.is_file() and not receipt.is_symlink():
@@ -128,7 +135,7 @@ def invoke(name,a):
             if row['terminal'] and row['state'] != 'closed':
                 try:
                     live = cli('hc','get',row['terminal'])
-                    if live.get('address') == row['terminal'] and live.get('argv') == [sys.executable,HERE,'worker',row['id']]:
+                    if live.get('address') == row['terminal'] and owns_worker(live,row['id']):
                         row['runtime'] = (live.get('status') or {}).get('state') or live.get('state','unknown')
                 except (ValueError,OSError,subprocess.TimeoutExpired):
                     pass
@@ -143,15 +150,20 @@ def invoke(name,a):
         name='spawn'
     if name=='spawn':
         h=a['harness']; mode=a.get('mode','once'); folder=str(Path(a['folder']).resolve(strict=True))
-        if h not in HARNESSES or not shutil.which(h) or mode not in ('once','short','long') or not Path(folder).is_dir():
+        profiles = load()
+        if h not in profiles or not shutil.which(profiles[h][0]) or mode not in ('once','short','long') or not Path(folder).is_dir():
             raise ValueError('invalid harness/mode/folder')
         space=next((s for s,t in tabs() if terminal in terminal_ids(t)),None)
         if not space: raise ValueError('owner has no visible tab')
-        key=uuid.uuid4().hex
+        key = uuid.uuid5(uuid.NAMESPACE_URL, owner+'/' + a['task_id']).hex if a.get('task_id') else uuid.uuid4().hex
         parent = os.environ.get('HERDR_TASK')
         if parent and registry.get(parent)['terminal'] != terminal:
             raise ValueError('parent terminal mismatch')
-        registry.create(key,owner,h,mode,a['name'],a['task'],folder,parent)
+        foreground = cli('hc','get',terminal).get('foreground') or {}
+        pid = foreground.get('pid') if foreground.get('name') not in ('sh','bash','zsh','fish','pwsh','cmd') else None
+        existing = registry.reserve(key,owner,h,mode,a['name'],a['task'],folder,parent,pid,json.dumps(profiles[h]))
+        if existing:
+            return dict(task=key, **existing)
         args=dict(space=space,name=a['name'],folder=folder,argv=[sys.executable,HERE,'worker',key])
         try:
             ref=cli('herdr-app','do','tab.new',json.dumps(args))
@@ -179,7 +191,7 @@ def invoke(name,a):
         tab=next((t for _,t in tabs() if t['id']==task['tab']),None)
         if tab:
             live=cli('hc','get',task['terminal'])
-            if live.get('state')=='live' and live.get('argv') != [sys.executable,HERE,'worker',key]:
+            if live.get('state')=='live' and not owns_worker(live,key):
                 raise ValueError('terminal taken over; manual cleanup')
             ids=set(terminal_ids(tab))-{tab['id']}
             if ids!={task['terminal']}: raise ValueError('tab ownership changed; manual cleanup')
@@ -191,7 +203,7 @@ def invoke(name,a):
 
 
 FIELDS={
-    'spawn': ('在主管的 Herdr Space 打开可见子任务。', ['name','folder','task','harness'],['mode']),
+    'spawn': ('在主管的 Herdr Space 打开可见子任务。', ['name','folder','task','harness'],['mode','task_id']),
     'resume': ('用上次交件摘要重新打开长期角色的可见窗格。',['task_id','instruction'],[]),
     'list': ('列出当前主管登记的子任务。',[],[]),
     'inbox': ('读取持久化的未收件反馈。',[],[]),
@@ -238,4 +250,7 @@ if __name__=='__main__':
     directory.mkdir(mode=0o700,parents=True,exist_ok=True)
     registry=Registry(directory/'tasks.db')
     if sys.argv[1:2]==['worker']: sys.exit(worker(sys.argv[2]))
-    serve()
+    if sys.argv[1:2] == ['call']:
+        print(json.dumps(invoke(sys.argv[2],json.loads(sys.argv[3])),ensure_ascii=False))
+    else:
+        serve()
