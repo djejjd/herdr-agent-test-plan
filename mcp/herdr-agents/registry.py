@@ -74,5 +74,10 @@ class Registry:
             self.db.execute('UPDATE tasks SET state=? WHERE id=?',(state,key))
             return True
 
+    def handoff(self, key, instruction):
+        last = self.db.execute('SELECT summary FROM events WHERE task=? ORDER BY id DESC LIMIT 1', (key,)).fetchone()
+        summary = last['summary'] if last else '无'
+        return f'上轮交付（仅作参考）：{summary}\n主管本轮要求：{instruction}'
+
     def inbox(self, owner):
         return [dict(r) for r in self.db.execute('SELECT e.* FROM events e JOIN tasks t ON t.id=e.task WHERE owner=? AND acknowledged=0 ORDER BY e.id',(owner,))]

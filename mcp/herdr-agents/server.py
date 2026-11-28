@@ -147,9 +147,8 @@ def invoke(name,a):
         previous=registry.get(a['task_id'])
         if previous['owner']!=owner or previous['mode']!='long' or previous['state']!='closed':
             raise ValueError('closed long role required')
-        last=registry.db.execute('SELECT summary FROM events WHERE task=? ORDER BY id DESC LIMIT 1',(previous['id'],)).fetchone()
         a=dict(name=previous['name'],folder=previous['folder'],mode='long',harness=previous['harness'],
-               task='上轮交接摘要：'+(last[0] if last else '无')+'\n下一项任务：'+a['instruction'])
+               task=registry.handoff(previous['id'], a['instruction']))
         name='spawn'
     if name=='spawn':
         h=a['harness']; mode=a.get('mode','once'); folder=str(Path(a['folder']).resolve(strict=True))
@@ -189,7 +188,7 @@ def invoke(name,a):
     with registry.db:
         if action=='retry':
             if not a.get('instruction'): raise ValueError('instruction required')
-            cur=registry.db.execute('UPDATE tasks SET prompt=?,turn=turn+1,state="working" WHERE id=? AND turn=? AND state=?',(a['instruction'],key,task['turn'],task['state']))
+            cur=registry.db.execute('UPDATE tasks SET prompt=?,turn=turn+1,state="working" WHERE id=? AND turn=? AND state=?',(registry.handoff(key, a['instruction']),key,task['turn'],task['state']))
         else:
             state='idle' if action=='accept' and task['mode']=='short' else 'closing'
             cur=registry.db.execute('UPDATE tasks SET state=? WHERE id=? AND turn=? AND state=?',(state,key,task['turn'],task['state']))

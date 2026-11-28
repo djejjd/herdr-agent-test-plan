@@ -32,3 +32,9 @@ class Lifecycle(unittest.TestCase):
         self.r.create('z','unrelated','claude','once','其他','检查','/tmp')
         self.assertEqual([r['id'] for r in self.r.tree('owner')], ['x','y'])
         self.assertEqual([r['id'] for r in self.r.tree('t7@2')], ['y'])
+
+    def test_retry_carries_last_delivery_and_current_ruling(self):
+        self.r.report('x', 1, 'review', '第一版结果 41')
+        handoff = self.r.handoff('x', '把结果加一')
+        self.assertIn('第一版结果 41', handoff)
+        self.assertTrue(handoff.endswith('把结果加一'))
