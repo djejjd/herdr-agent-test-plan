@@ -13,3 +13,9 @@ def load(config=None):
         if not isinstance(argv, list) or not argv or not all(isinstance(v,str) and v for v in argv) or argv.count('{task}') != 1 or argv[0] == '{task}':
             raise ValueError(f'invalid harness profile: {name}')
     return profiles
+
+
+def command(argv, task, receipt):
+    """将任务和原生最终回复文件作为独立参数传给执行器。"""
+    fields = {'{task}': task, '{receipt}': str(receipt)}
+    return [fields.get(arg, arg) for arg in argv]

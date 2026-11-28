@@ -9,7 +9,7 @@ import sys
 import time
 import uuid
 from registry import Registry
-from adapters import load
+from adapters import load, command
 
 HERE = str(Path(__file__).resolve())
 
@@ -97,7 +97,10 @@ def worker(key):
             receipt = directory / f'{key}-{turn}.receipt'
             instruction = (task['prompt'] + '\n完成后将简短交付摘要和证据位置作为 UTF-8 文本写入 '
                            + str(receipt) + '，也可以用已配置的 report 工具交件。')
-            result = subprocess.run([instruction if arg=='{task}' else arg for arg in json.loads(task['launch_argv'])],env=env)
+            argv = json.loads(task['launch_argv'])
+            if '{receipt}' in argv:
+                instruction = task['prompt'] + '\n请在最终回复中给出简短交付摘要和证据位置。'
+            result = subprocess.run(command(argv, instruction, receipt),env=env)
             status = 'review' if result.returncode==0 else 'failed'
             if registry.get(key)['state'] not in ('review','failed'):
                 if status == 'review' and receipt.is_file() and not receipt.is_symlink():

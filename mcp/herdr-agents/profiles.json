@@ -1,5 +1,5 @@
 {
-  "codex": ["codex", "exec", "--skip-git-repo-check", "--", "{task}"],
+  "codex": ["codex", "exec", "--skip-git-repo-check", "--output-last-message", "{receipt}", "--", "{task}"],
   "claude": ["claude", "-p", "--", "{task}"],
   "omp": ["omp", "-p", "{task}"],
   "ds-tui": ["dsh-tui", "run", "{task}"],
