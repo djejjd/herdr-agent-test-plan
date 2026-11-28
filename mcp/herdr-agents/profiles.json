@@ -1,0 +1,8 @@
+{
+  "codex": ["codex", "exec", "--skip-git-repo-check", "--output-last-message", "{receipt}", "--", "{task}"],
+  "claude": ["{claude_receipt}", "{receipt}", "claude", "-p", "--output-format", "json", "--", "{task}"],
+  "omp": ["omp", "-p", "{task}"],
+  "ds-tui": ["{stdout_receipt}", "{receipt}", "dsh-tui", "run", "{task}"],
+  "pi": ["pi", "-p", "{task}"],
+  "opencode": ["opencode", "run", "--", "{task}"]
+}

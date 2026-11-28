@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# card-check：校验交付卡格式。exit 0 通过；1 格式不合；2 用法/文件错误。
+# 只做格式与可复核证据的机械校验，不判断内容真伪。
+set -uo pipefail
+
+f=${1:-}
+if [ -z "$f" ]; then echo 'usage: card-check <card-file>' >&2; exit 2; fi
+[ -f "$f" ] || { echo "card-check: 文件不存在: $f" >&2; exit 2; }
+
+fail=0
+err() { printf '  ✗ %s\n' "$1" >&2; fail=1; }
+
+head_line=$(head -n 1 "$f")
+if [[ ! $head_line =~ ^CARD｜[^｜]+｜[^｜]+｜(完成|阻塞|返修|待审)$ ]]; then
+  err "首行须为 CARD｜任务ID｜界面名(t号)｜完成|阻塞|返修|待审：$head_line"
+fi
+
+ev=$(grep -m1 '^EVIDENCE:' "$f" || true)
+if [ -z "$ev" ]; then
+  err "缺 EVIDENCE: 行"
+elif [[ ! $ev =~ (cmd=[^;]*exit=[0-9]+|file=[^[:space:];]+:[0-9]+|shot=[^[:space:];]+) ]]; then
+  err "EVIDENCE 无可用证据（cmd=...exit=N / file=path:line / shot=path）"
+fi
+
+grep -qE '^RULING: ' "$f" || err "缺 RULING: 行"
+grep -qE '^NEXT: ' "$f" || err "缺 NEXT: 行"
+
+if grep -qE '（填|<[^>]*>' "$f"; then err "含未填占位符（（填… / <…>）"; fi
+
+if [ "$fail" -eq 0 ]; then echo "card-check: OK $f"; fi
+exit "$fail"
