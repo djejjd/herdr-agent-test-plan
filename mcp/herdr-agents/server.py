@@ -267,6 +267,12 @@ if __name__=='__main__':
     registry=Registry(directory/'tasks.db')
     if sys.argv[1:2]==['worker']: sys.exit(worker(sys.argv[2]))
     if sys.argv[1:2] == ['call']:
-        print(json.dumps(invoke(sys.argv[2],json.loads(sys.argv[3])),ensure_ascii=False))
+        if len(sys.argv) not in (3, 4) or sys.argv[2] not in FIELDS:
+            sys.exit('usage: server.py call TOOL [JSON]')
+        name = sys.argv[2]
+        if len(sys.argv) == 3 and FIELDS[name][1]:
+            sys.exit(f'{name} requires JSON arguments')
+        arguments = json.loads(sys.argv[3]) if len(sys.argv) == 4 else {}
+        print(json.dumps(invoke(name, arguments), ensure_ascii=False))
     else:
         serve()
