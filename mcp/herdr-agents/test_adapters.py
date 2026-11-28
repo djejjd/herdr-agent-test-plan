@@ -20,3 +20,11 @@ class Adapters(unittest.TestCase):
         args = command(load()['codex'], 'answer only', '/tmp/demo receipt')
         self.assertEqual(args[args.index('--output-last-message') + 1], '/tmp/demo receipt')
         self.assertEqual(args[-1], 'answer only')
+
+    def test_claude_final_result(self):
+        from claude_receipt import final_result
+        event = dict(type='result', subtype='success', is_error=False, result='31')
+        self.assertEqual(final_result(event), '31')
+        for changes in (dict(is_error=True),dict(subtype='error'),dict(result='  ')):
+            with self.assertRaises(ValueError):
+                final_result(dict(event, **changes))

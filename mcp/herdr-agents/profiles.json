@@ -1,6 +1,6 @@
 {
   "codex": ["codex", "exec", "--skip-git-repo-check", "--output-last-message", "{receipt}", "--", "{task}"],
-  "claude": ["claude", "-p", "--", "{task}"],
+  "claude": ["{claude_receipt}", "{receipt}", "claude", "-p", "--output-format", "json", "--", "{task}"],
   "omp": ["omp", "-p", "{task}"],
   "ds-tui": ["dsh-tui", "run", "{task}"],
   "pi": ["pi", "-p", "{task}"],

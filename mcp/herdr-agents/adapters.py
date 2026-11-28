@@ -1,6 +1,7 @@
 """从发行配置及用户配置读取 harness 的 argv，无 shell 插值。"""
 import json
 import os
+import sys
 from pathlib import Path
 
 
@@ -12,6 +13,9 @@ def load(config=None):
     for name, argv in profiles.items():
         if not isinstance(argv, list) or not argv or not all(isinstance(v,str) and v for v in argv) or argv.count('{task}') != 1 or argv[0] == '{task}':
             raise ValueError(f'invalid harness profile: {name}')
+    for argv in profiles.values():
+        if argv[0] == '{claude_receipt}':
+            argv[:1] = [sys.executable, str(Path(__file__).with_name('claude_receipt.py'))]
     return profiles
 
 
